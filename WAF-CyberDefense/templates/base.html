@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}CyberShield WAF{% endblock %}</title>
+
+  <!-- Google Fonts: Orbitron (display) + Share Tech Mono (terminal) + Rajdhani (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- Chart.js for data visualisations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+  <!-- ══ Matrix Rain Canvas (background layer) ══════════════ -->
+  <canvas id="matrix-canvas"></canvas>
+
+  <!-- ══ Scan-line overlay (pure CSS) ══════════════════════ -->
+  <div class="scanlines"></div>
+
+  <!-- ══ Navigation Bar ════════════════════════════════════ -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon">🛡</span>
+      <span class="brand-name">CYBER<span class="accent">SHIELD</span></span>
+      <span class="brand-version">WAF v2.0</span>
+    </div>
+
+    <ul class="nav-links">
+      <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <span class="link-icon">⬡</span> Dashboard
+      </a></li>
+      <li><a href="{{ url_for('logs') }}" class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
+        <span class="link-icon">⬡</span> Attack Logs
+      </a></li>
+      <li><a href="{{ url_for('status') }}" class="nav-link {% if request.endpoint == 'status' %}active{% endif %}">
+        <span class="link-icon">⬡</span> System Status
+      </a></li>
+    </ul>
+
+    <div class="nav-right">
+      <!-- Live digital clock -->
+      <div class="live-clock" id="liveClock">00:00:00</div>
+      <!-- Firewall status pill -->
+      <div class="status-pill online">
+        <span class="pulse-dot"></span> FIREWALL ONLINE
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ Page Content ═══════════════════════════════════════ -->
+  <main class="page-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ══ Footer ════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <span>CyberShield WAF &copy; 2025 — College PBL Project</span>
+    <span class="footer-sep">|</span>
+    <span>Built with Python Flask &amp; Cybersecurity Principles</span>
+    <span class="footer-sep">|</span>
+    <span id="footer-requests">Requests monitored: <strong id="footerReqCount">—</strong></span>
+  </footer>
+
+  <!-- ══ Shared Scripts ═════════════════════════════════════ -->
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

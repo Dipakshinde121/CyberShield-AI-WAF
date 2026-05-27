@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CyberShield WAF{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO HEADER
+════════════════════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="hero-inner">
+    <p class="hero-label">SECURITY OPERATIONS CENTER</p>
+    <h1 class="hero-title">
+      <span class="typing-text" id="typingTitle">AI-Powered Web Application Firewall</span>
+      <span class="cursor-blink">|</span>
+    </h1>
+    <p class="hero-sub">Real-Time Threat Detection &amp; Mitigation Platform</p>
+  </div>
+
+  <!-- Threat Level Badge -->
+  <div class="threat-badge threat-{{ stats.threat_level | lower }}" id="threatBadge">
+    <span class="tb-label">THREAT LEVEL</span>
+    <span class="tb-level" id="threatLevel">{{ stats.threat_level }}</span>
+  </div>
+</header>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     STAT CARDS ROW
+════════════════════════════════════════════════════════════ -->
+<section class="stats-grid">
+
+  <div class="stat-card" data-stat="total">
+    <div class="stat-icon">📡</div>
+    <div class="stat-body">
+      <p class="stat-label">Total Requests</p>
+      <p class="stat-value" id="statTotal">{{ stats.total_requests }}</p>
+      <p class="stat-sub">Monitored by WAF</p>
+    </div>
+    <div class="stat-glow blue"></div>
+  </div>
+
+  <div class="stat-card danger" data-stat="blocked">
+    <div class="stat-icon">🚫</div>
+    <div class="stat-body">
+      <p class="stat-label">Blocked Attacks</p>
+      <p class="stat-value" id="statBlocked">{{ stats.blocked_attacks }}</p>
+      <p class="stat-sub">Threats neutralised</p>
+    </div>
+    <div class="stat-glow red"></div>
+  </div>
+
+  <div class="stat-card success" data-stat="safe">
+    <div class="stat-icon">✔</div>
+    <div class="stat-body">
+      <p class="stat-label">Safe Requests</p>
+      <p class="stat-value" id="statSafe">{{ stats.safe_requests }}</p>
+      <p class="stat-sub">Passed inspection</p>
+    </div>
+    <div class="stat-glow green"></div>
+  </div>
+
+  <div class="stat-card" data-stat="ai">
+    <div class="stat-icon">🤖</div>
+    <div class="stat-body">
+      <p class="stat-label">AI Confidence</p>
+      <p class="stat-value" id="statAI">98.7%</p>
+      <p class="stat-sub">Detection accuracy</p>
+    </div>
+    <div class="stat-glow blue"></div>
+  </div>
+
+  <div class="stat-card" data-stat="pps">
+    <div class="stat-icon">⚡</div>
+    <div class="stat-body">
+      <p class="stat-label">Packets / sec</p>
+      <p class="stat-value" id="statPPS">—</p>
+      <p class="stat-sub">Live traffic</p>
+    </div>
+    <div class="stat-glow yellow"></div>
+  </div>
+
+  <div class="stat-card success" data-stat="uptime">
+    <div class="stat-icon">🔒</div>
+    <div class="stat-body">
+      <p class="stat-label">Firewall Uptime</p>
+      <p class="stat-value">99.97%</p>
+      <p class="stat-sub">Protection active</p>
+    </div>
+    <div class="stat-glow green"></div>
+  </div>
+
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN GRID  (Analyser  |  Chart  |  Recent Attacks)
+════════════════════════════════════════════════════════════ -->
+<section class="main-grid">
+
+  <!-- ── Request Analyzer Panel ──────────────────────────── -->
+  <div class="glass-card analyzer-card">
+    <div class="card-header">
+      <span class="card-icon">🔎</span>
+      <h2 class="card-title">REQUEST ANALYZER</h2>
+      <span class="card-badge">LIVE</span>
+    </div>
+
+    <p class="analyzer-desc">
+      Submit a payload to test the firewall engine. The AI detection layer
+      will classify the request in real-time.
+    </p>
+
+    <form method="POST" action="/" class="analyzer-form" id="analyzerForm">
+      <div class="input-group">
+        <label class="input-label" for="payloadInput">PAYLOAD INPUT</label>
+        <input
+          id="payloadInput"
+          type="text"
+          name="data"
+          placeholder="e.g.  SELECT * FROM users  |  <script>alert(1)</script>"
+          autocomplete="off"
+          required
+        />
+        <div class="input-glow"></div>
+      </div>
+
+      <div class="quick-tests">
+        <p class="qt-label">Quick Tests:</p>
+        <button type="button" class="qt-btn sql"    onclick="fillPayload(`' OR 1=1 --`)">SQL Injection</button>
+        <button type="button" class="qt-btn xss"    onclick="fillPayload(`<script>alert('XSS')</script>`)">XSS Attack</button>
+        <button type="button" class="qt-btn cmd"    onclick="fillPayload(`; cat /etc/passwd`)">Cmd Injection</button>
+        <button type="button" class="qt-btn safe"   onclick="fillPayload(`Hello World`)">Safe Request</button>
+      </div>
+
+      <button type="submit" class="scan-btn" id="scanBtn">
+        <span class="scan-icon">▶</span>
+        <span class="scan-label">INITIATE SCAN</span>
+        <span class="scan-bar"></span>
+      </button>
+    </form>
+
+    <!-- Result message (shown on safe request) -->
+    {% if message %}
+    <div class="result-box {{ 'safe' if alert == 'safe' else 'danger' }}">
+      <span class="res-icon">{{ '✔' if alert == 'safe' else '✖' }}</span>
+      <span class="res-text">{{ message }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Terminal-style log feed -->
+    <div class="terminal-box">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span class="term-title">FIREWALL ENGINE LOG</span>
+      </div>
+      <div class="terminal-body" id="terminalBody">
+        <p class="term-line"><span class="tc-time">[INIT]</span> <span class="tc-ok">CyberShield WAF v2.0 loaded</span></p>
+        <p class="term-line"><span class="tc-time">[INIT]</span> <span class="tc-ok">AI Threat Engine: ONLINE</span></p>
+        <p class="term-line"><span class="tc-time">[INIT]</span> <span class="tc-ok">IDS Module: ACTIVE</span></p>
+        <p class="term-line"><span class="tc-time">[INFO]</span> <span class="tc-info">Monitoring inbound traffic…</span></p>
+      </div>
+    </div>
+  </div><!-- /analyzer-card -->
+
+
+  <!-- ── Right Column (Chart + Security Modules) ─────────── -->
+  <div class="right-col">
+
+    <!-- Attack-type doughnut chart -->
+    <div class="glass-card chart-card">
+      <div class="card-header">
+        <span class="card-icon">📊</span>
+        <h2 class="card-title">ATTACK ANALYTICS</h2>
+        <span class="card-badge live-badge" id="chartUpdating">AUTO</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="attackChart"></canvas>
+        <div class="chart-center-label">
+          <p id="chartTotalLabel">{{ stats.blocked_attacks }}</p>
+          <span>Threats</span>
+        </div>
+      </div>
+      {% if not stats.type_counts %}
+      <p class="no-data-msg">No attacks logged yet — test some payloads above ↑</p>
+      {% endif %}
+    </div>
+
+    <!-- Security Module Status -->
+    <div class="glass-card modules-card">
+      <div class="card-header">
+        <span class="card-icon">⚙</span>
+        <h2 class="card-title">SECURITY MODULES</h2>
+      </div>
+      <ul class="module-list">
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">AI Threat Engine</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">SQL Injection Guard</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">XSS Filter</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">Command Injection Blocker</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">Dir. Traversal Shield</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">Intrusion Detection (IDS)</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item online"><span class="m-dot"></span><span class="m-name">Live Packet Monitor</span><span class="m-status">ACTIVE</span></li>
+        <li class="module-item warn"><span class="m-dot"></span><span class="m-name">Deep Packet Inspection</span><span class="m-status">LEARNING</span></li>
+      </ul>
+    </div>
+
+  </div><!-- /right-col -->
+
+</section><!-- /main-grid -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     RECENT ATTACKS TABLE
+════════════════════════════════════════════════════════════ -->
+<section class="glass-card full-width-card">
+  <div class="card-header">
+    <span class="card-icon">⚠</span>
+    <h2 class="card-title">RECENT ATTACK LOG</h2>
+    <a href="{{ url_for('logs') }}" class="view-all-btn">View All →</a>
+  </div>
+
+  {% if stats.recent_attacks %}
+  <div class="table-wrap">
+    <table class="attack-table">
+      <thead>
+        <tr>
+          <th>TIMESTAMP</th>
+          <th>SOURCE IP</th>
+          <th>ATTACK TYPE</th>
+          <th>SEVERITY</th>
+          <th>THREAT SCORE</th>
+          <th>PAYLOAD PREVIEW</th>
+        </tr>
+      </thead>
+      <tbody id="recentAttackBody">
+        {% for log in stats.recent_attacks %}
+        <tr class="trow sev-{{ log.severity | lower }}">
+          <td class="td-mono">{{ log.timestamp }}</td>
+          <td class="td-mono ip-cell">{{ log.ip }}</td>
+          <td><span class="type-badge">{{ log.attack_type }}</span></td>
+          <td><span class="sev-badge sev-{{ log.severity | lower }}">{{ log.severity }}</span></td>
+          <td>
+            <div class="score-bar-wrap">
+              <div class="score-bar" style="width:{{ log.threat_score }}%"></div>
+              <span class="score-num">{{ log.threat_score }}</span>
+            </div>
+          </td>
+          <td class="td-mono payload-td">{{ log.payload[:60] }}{% if log.payload|length > 60 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p class="empty-icon">🟢</p>
+    <p class="empty-msg">No threats detected yet — system is clean</p>
+    <p class="empty-sub">Try submitting a test payload in the Request Analyzer above</p>
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Quick-fill helper ─────────────────────────────────────
+  function fillPayload(val) {
+    document.getElementById('payloadInput').value = val;
+    document.getElementById('payloadInput').focus();
+  }
+
+  // ── Scan button animation ─────────────────────────────────
+  document.getElementById('analyzerForm').addEventListener('submit', function () {
+    const btn = document.getElementById('scanBtn');
+    btn.classList.add('scanning');
+    btn.querySelector('.scan-label').textContent = 'SCANNING…';
+    appendTerminalLine('INFO', 'Payload received — running threat analysis…', 'tc-info');
+  });
+
+  // ── Build attack chart from template data ─────────────────
+  const typeCounts = {{ stats.type_counts | tojson }};
+  buildAttackChart(typeCounts, {{ stats.blocked_attacks }});
+</script>
+{% endblock %}

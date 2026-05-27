@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Attack Logs — CyberShield WAF{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════════════════════════
+     ATTACK LOGS PAGE
+════════════════════════════════════════════════════════════ -->
+<header class="page-hero">
+  <h1 class="page-hero-title">📋 ATTACK LOG DATABASE</h1>
+  <p class="page-hero-sub">Complete forensic record of all detected and blocked threats</p>
+</header>
+
+<!-- Summary cards -->
+<section class="mini-stats">
+  <div class="mini-card">
+    <span class="mc-icon">🚫</span>
+    <span class="mc-val">{{ logs | length }}</span>
+    <span class="mc-lbl">Total Blocked</span>
+  </div>
+  <div class="mini-card">
+    <span class="mc-icon">🔴</span>
+    <span class="mc-val">{{ logs | selectattr('severity', 'equalto', 'CRITICAL') | list | length }}</span>
+    <span class="mc-lbl">Critical</span>
+  </div>
+  <div class="mini-card">
+    <span class="mc-icon">🟠</span>
+    <span class="mc-val">{{ logs | selectattr('severity', 'equalto', 'HIGH') | list | length }}</span>
+    <span class="mc-lbl">High</span>
+  </div>
+  <div class="mini-card">
+    <span class="mc-icon">🟡</span>
+    <span class="mc-val">{{ logs | selectattr('severity', 'equalto', 'MEDIUM') | list | length }}</span>
+    <span class="mc-lbl">Medium</span>
+  </div>
+  <div class="mini-card">
+    <span class="mc-icon">📡</span>
+    <span class="mc-val">{{ stats.total_requests }}</span>
+    <span class="mc-lbl">Total Requests</span>
+  </div>
+</section>
+
+<!-- Filter + Clear row -->
+<div class="logs-toolbar glass-card">
+  <div class="filter-group">
+    <label class="filter-label">Filter by Type:</label>
+    <select id="typeFilter" class="filter-select" onchange="filterLogs()">
+      <option value="all">All Attack Types</option>
+      <option value="SQL Injection">SQL Injection</option>
+      <option value="Cross-Site Scripting (XSS)">XSS</option>
+      <option value="Command Injection">Command Injection</option>
+      <option value="Directory Traversal">Directory Traversal</option>
+      <option value="Remote Code Execution">RCE</option>
+      <option value="Suspicious HTTP">Suspicious HTTP</option>
+    </select>
+    <label class="filter-label">Severity:</label>
+    <select id="sevFilter" class="filter-select" onchange="filterLogs()">
+      <option value="all">All Severities</option>
+      <option value="CRITICAL">Critical</option>
+      <option value="HIGH">High</option>
+      <option value="MEDIUM">Medium</option>
+    </select>
+  </div>
+  <form method="POST" action="/api/clear_logs" id="clearForm">
+    <button type="button" class="clear-btn" onclick="confirmClear()">🗑 Clear All Logs</button>
+  </form>
+</div>
+
+<!-- Full logs table -->
+<div class="glass-card full-width-card logs-table-card">
+  {% if logs %}
+  <div class="table-wrap">
+    <table class="attack-table" id="logsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>TIMESTAMP</th>
+          <th>SOURCE IP</th>
+          <th>ATTACK TYPE</th>
+          <th>SEVERITY</th>
+          <th>THREAT SCORE</th>
+          <th>PAYLOAD</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr class="trow sev-{{ log.severity | lower }}" data-type="{{ log.attack_type }}" data-sev="{{ log.severity }}">
+          <td class="td-mono">{{ loop.index }}</td>
+          <td class="td-mono">{{ log.timestamp }}</td>
+          <td class="td-mono ip-cell">{{ log.ip }}</td>
+          <td><span class="type-badge">{{ log.attack_type }}</span></td>
+          <td><span class="sev-badge sev-{{ log.severity | lower }}">{{ log.severity }}</span></td>
+          <td>
+            <div class="score-bar-wrap">
+              <div class="score-bar" style="width:{{ log.threat_score }}%"></div>
+              <span class="score-num">{{ log.threat_score }}</span>
+            </div>
+          </td>
+          <td class="td-mono payload-td" title="{{ log.payload }}">
+            {{ log.payload[:80] }}{% if log.payload|length > 80 %}…{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p class="empty-icon">🟢</p>
+    <p class="empty-msg">No attack logs found</p>
+    <p class="empty-sub">Submit test payloads from the <a href="{{ url_for('dashboard') }}">Dashboard</a> to populate this table</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Table filtering ───────────────────────────────────────
+  function filterLogs() {
+    const typeVal = document.getElementById('typeFilter').value;
+    const sevVal  = document.getElementById('sevFilter').value;
+    document.querySelectorAll('#logsTable tbody tr').forEach(row => {
+      const rowType = row.dataset.type || '';
+      const rowSev  = row.dataset.sev  || '';
+      const typeOk  = typeVal === 'all' || rowType.includes(typeVal);
+      const sevOk   = sevVal  === 'all' || rowSev  === sevVal;
+      row.style.display = (typeOk && sevOk) ? '' : 'none';
+    });
+  }
+
+  // ── Clear logs confirmation ───────────────────────────────
+  async function confirmClear() {
+    if (!confirm('⚠ This will permanently delete all attack logs. Continue?')) return;
+    const resp = await fetch('/api/clear_logs', { method: 'POST' });
+    if (resp.ok) {
+      appendTerminalLine('WARN', 'All attack logs cleared by operator.', 'tc-warn');
+      location.reload();
+    }
+  }
+</script>
+{% endblock %}

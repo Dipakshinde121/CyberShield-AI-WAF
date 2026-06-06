@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "timestamp": "2026-06-07 00:18:33",
+    "ip": "127.0.0.1",
+    "payload": "' OR 1=1 --",
+    "attack_type": "SQL Injection",
+    "severity": "HIGH",
+    "threat_score": 90,
+    "total_requests": 1
+  }
+]

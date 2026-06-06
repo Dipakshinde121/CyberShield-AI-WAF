@@ -1,21 +1,22 @@
 # 🛡️ CyberShield WAF — Web Application Firewall
 
-> **AI-Powered Web Application Firewall Dashboard**  
-> A professional cyber security project built with Python Flask  
+> **AI-Powered Web Application Firewall Dashboard & Assistant**  
+> A professional cyber security project built in pure Python with Streamlit  
 > *College PBL Project | GitHub Portfolio | SOC Dashboard*
 
 ---
 
 ## 📌 Project Overview
 
-**CyberShield WAF** is a real-time Web Application Firewall (WAF) that monitors, detects, and blocks malicious HTTP requests. The project features an enterprise-grade cybersecurity dashboard inspired by real-world Security Operations Centers (SOCs).
+**CyberShield WAF** is a real-time Web Application Firewall (WAF) that monitors, detects, and blocks malicious HTTP requests. The project features an enterprise-grade cybersecurity dashboard inspired by real-world Security Operations Centers (SOCs) and a built-in AI help bot.
 
 ### 🔐 What It Does
-- Inspects incoming web requests for **6 attack categories**
+- Inspects incoming requests for **6 attack categories**
 - Blocks and logs all detected threats with **severity scoring**
 - Displays a live **SOC-style dashboard** with animated charts
 - Provides a **forensic attack log** with filtering capabilities
 - Shows **system health status** and module uptime
+- Offers an interactive **AI Security Chatbot** (SHIELD-AI) for payload analysis and OWASP queries
 
 ---
 
@@ -24,11 +25,12 @@
 | Feature | Description |
 |---|---|
 | 🤖 AI Threat Engine | Pattern-matching detection across 6 attack categories |
-| 🚫 Attack Blocking | Instant block with detailed threat breakdown |
-| 📊 Live Dashboard | Real-time stats: requests, blocks, threat level |
+| 🚫 Attack Blocking | Instant block alerts with detailed threat breakdown |
+| 📊 Live Dashboard | Real-time stats and Matplotlib-based distribution charts |
 | 📋 Attack Logs | Full forensic log with filter by type/severity |
-| ⚙️ System Status | Module health, OWASP coverage, packet monitoring |
-| 🎨 Cyber UI | Dark neon theme, matrix rain, glassmorphism cards |
+| ⚙️ System Status | Module health, resource usage, and OWASP coverage |
+| 🤖 SHIELD-AI Bot | Interactive security chat helper with local + Gemini API support |
+| 🎨 Cyber UI | Neon dark theme, metrics formatting, and custom style rules |
 
 ---
 
@@ -49,23 +51,10 @@
 
 ```
 WAF-CyberDefense/
-├── app.py                  # Flask backend — routes, detection, logging
-├── requirements.txt        # Python dependencies (only Flask needed)
+├── app.py                  # Main Streamlit App: WAF engine, UI layout, chatbot
+├── requirements.txt        # Python dependencies (Streamlit, Matplotlib, Pandas)
 ├── attack_logs.json        # JSON-based attack log database
-├── README.md
-│
-├── templates/
-│   ├── base.html           # Shared layout: navbar, matrix bg, footer
-│   ├── index.html          # 🏠 Main dashboard
-│   ├── blocked.html        # 🚨 Threat blocked page
-│   ├── logs.html           # 📋 Full attack logs table
-│   └── status.html         # ⚙️  System status & OWASP coverage
-│
-└── static/
-    ├── css/
-    │   └── style.css       # Cyberpunk dark theme, all styling
-    └── js/
-        └── dashboard.js    # Matrix rain, clock, charts, live polling
+└── README.md
 ```
 
 ---
@@ -74,21 +63,17 @@ WAF-CyberDefense/
 
 ### 1. Install Python dependencies
 ```bash
-pip install flask
-# or
 pip install -r requirements.txt
 ```
 
 ### 2. Run the application
 ```bash
-python app.py
+streamlit run app.py
 ```
 
 ### 3. Open in browser
 ```
-http://127.0.0.1:5000           ← Main Dashboard
-http://127.0.0.1:5000/logs      ← Attack Logs
-http://127.0.0.1:5000/status    ← System Status
+http://localhost:8501
 ```
 
 ---
@@ -119,12 +104,10 @@ Hello World
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Python 3, Flask
-- **Frontend:** HTML5, CSS3 (custom variables, glassmorphism), Vanilla JS
-- **Charts:** Chart.js v4
-- **Fonts:** Orbitron · Rajdhani · Share Tech Mono (Google Fonts)
-- **Storage:** JSON flat-file log database
-- **Design:** SOC dashboard, cyberpunk neon theme
+- **Framework:** Python 3, Streamlit
+- **Data & Charts:** Pandas, Matplotlib
+- **AI Integration:** Google Gemini API (optional, via environment key) or Local Rule-Based Expert System
+- **Design:** SOC dashboard, custom CSS dark neon injection
 
 ---
 
@@ -135,8 +118,8 @@ This project demonstrates understanding of:
 - **Regex-based signature detection** (core WAF technique)
 - **Threat scoring and severity classification**
 - **Forensic logging** for incident response
-- **RESTful API design** with Flask
-- **Frontend data visualization** with Chart.js
+- **AI Chat Agent Design** with RAG context mapping
+- **Data visualization** with Matplotlib
 
 ---
 

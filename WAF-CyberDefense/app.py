@@ -23,6 +23,9 @@ st.set_page_config(
 
 # ── Configuration & Paths ───────────────────────────────────
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "attack_logs.json")
+USER_DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_credentials.json")
+LOGIN_HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "login_history.json")
+ACTIVE_SESSIONS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "active_sessions.json")
 
 # ── Attack Pattern Definitions ──────────────────────────────
 ATTACK_SIGNATURES = {
@@ -125,6 +128,90 @@ def clear_logs_file():
     except IOError:
         st.error("Failed to clear log file.")
 
+# ── User & Session Database Helpers ──────────────────────────
+def load_users():
+    """Load user credentials from file."""
+    if not os.path.exists(USER_DB_FILE):
+        return {"admin": "admin"}
+    try:
+        with open(USER_DB_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {"admin": "admin"}
+
+def save_user(username, password):
+    """Save new user credentials."""
+    users = load_users()
+    users[username] = password
+    try:
+        with open(USER_DB_FILE, "w") as f:
+            json.dump(users, f, indent=2)
+        return True
+    except IOError:
+        return False
+
+def load_login_history():
+    """Load login history records."""
+    if not os.path.exists(LOGIN_HISTORY_FILE):
+        return []
+    try:
+        with open(LOGIN_HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+def log_login_event(username):
+    """Record a successful login timestamp."""
+    history = load_login_history()
+    event = {
+        "username": username,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    history.append(event)
+    try:
+        with open(LOGIN_HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=2)
+    except IOError:
+        pass
+
+def load_active_sessions():
+    """Load active persistence tokens."""
+    if not os.path.exists(ACTIVE_SESSIONS_FILE):
+        return {}
+    try:
+        with open(ACTIVE_SESSIONS_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+def save_active_sessions(sessions):
+    """Save active sessions database."""
+    try:
+        with open(ACTIVE_SESSIONS_FILE, "w") as f:
+            json.dump(sessions, f, indent=2)
+    except IOError:
+        pass
+
+def register_session(username):
+    """Create a persistent session token."""
+    sessions = load_active_sessions()
+    token = f"sess_{random.randint(100000, 999999)}_{int(datetime.now().timestamp())}"
+    sessions[token] = username
+    save_active_sessions(sessions)
+    return token
+
+def verify_session(token):
+    """Check if token is valid and return username."""
+    sessions = load_active_sessions()
+    return sessions.get(token)
+
+def delete_session(token):
+    """Delete session token on logout."""
+    sessions = load_active_sessions()
+    if token in sessions:
+        del sessions[token]
+        save_active_sessions(sessions)
+
 # ── Threat Detection Logic ──────────────────────────────────
 def detect_attack(user_input):
     """Scan the input against all attack signatures."""
@@ -220,6 +307,22 @@ inject_custom_css()
 logs = load_logs()
 db_stats = get_stats(logs)
 
+# Initialize Authentication States
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "username" not in st.session_state:
+    st.session_state.username = ""
+
+# Auto-Login Check (Remember Me Hook)
+if not st.session_state.logged_in:
+    query_sess = st.query_params.get("session")
+    if query_sess:
+        autologin_user = verify_session(query_sess)
+        if autologin_user:
+            st.session_state.logged_in = True
+            st.session_state.username = autologin_user
+
 if "total_requests" not in st.session_state:
     st.session_state.total_requests = db_stats["total_requests"]
 
@@ -227,18 +330,120 @@ if "total_requests" not in st.session_state:
 if "payload_input" not in st.session_state:
     st.session_state.payload_input = ""
 
+# ── Login Page Component ─────────────────────────────────────
+def render_login_page():
+    st.markdown("""
+        <style>
+        .login-container {
+            max-width: 480px;
+            margin: 80px auto;
+            padding: 35px;
+            background: rgba(11, 14, 20, 0.85) !important;
+            border: 2px solid #00d4ff !important;
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.45) !important;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .login-title {
+            color: #00d4ff !important;
+            font-weight: 800;
+            font-size: 24px;
+            text-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+            margin-bottom: 5px;
+            letter-spacing: 1.5px;
+        }
+        .login-subtitle {
+            color: #8da2b5;
+            font-size: 11px;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    st.markdown('<p class="login-title">🛡️ CYBERSHIELD GATEWAY</p>', unsafe_allow_html=True)
+    st.markdown('<p class="login-subtitle">SECURE OPERATOR ACCESS PANEL</p>', unsafe_allow_html=True)
+    
+    login_tab, register_tab = st.tabs(["🔑 Sign In", "📝 Register Account"])
+    
+    with login_tab:
+        with st.form("login_form"):
+            username = st.text_input("Operator Username", placeholder="e.g. admin")
+            password = st.text_input("Access Password", type="password", placeholder="••••••••")
+            remember_me = st.checkbox("Remember session on this device", value=True)
+            submit_login = st.form_submit_button("AUTHORIZE SYSTEM ACCESS")
+            
+            if submit_login:
+                if not username.strip() or not password.strip():
+                    st.error("Please enter both username and password.")
+                else:
+                    users = load_users()
+                    if username in users and users[username] == password:
+                        st.session_state.logged_in = True
+                        st.session_state.username = username
+                        log_login_event(username)
+                        if remember_me:
+                            token = register_session(username)
+                            st.query_params["session"] = token
+                        st.success("Access Authorized! Redirecting to SOC dashboard...")
+                        st.rerun()
+                    else:
+                        st.error("ACCESS DENIED: Invalid operator credentials.")
+                        
+    with register_tab:
+        with st.form("register_form"):
+            reg_username = st.text_input("Create Username", placeholder="e.g. operator1")
+            reg_password = st.text_input("Create Password", type="password", placeholder="••••••••")
+            reg_confirm = st.text_input("Confirm Password", type="password", placeholder="••••••••")
+            submit_reg = st.form_submit_button("PROVISION ACCOUNT")
+            
+            if submit_reg:
+                if not reg_username.strip() or not reg_password.strip():
+                    st.error("All credential fields are required.")
+                elif reg_password != reg_confirm:
+                    st.error("Password verification mismatch.")
+                else:
+                    users = load_users()
+                    if reg_username in users:
+                        st.error("Username is already registered.")
+                    else:
+                        if save_user(reg_username, reg_password):
+                            st.success("Operator registered successfully! Please sign in using the Sign In tab.")
+                        else:
+                            st.error("Failed to write to operator database.")
+                            
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Authentication Gate ──────────────────────────────────────
+if not st.session_state.logged_in:
+    render_login_page()
+    st.stop()
+
 # ── Sidebar ──────────────────────────────────────────────────
 st.sidebar.markdown("### 🛡️ CyberShield Control Panel")
 st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Operator:** `{st.session_state.username}`")
 st.sidebar.markdown("**Firewall Status:** 🟢 `ONLINE`  \n**Uptime:** `99.97%`  \n**Engine:** `Active Signature Guard`  \n**Ruleset:** `42 rules loaded`  \n**OWASP Top-10 Coverage:** `95%` ")
 
 st.sidebar.markdown("---")
 # Reset functionality
-if st.sidebar.button("🗑️ Clear Firewall Logs"):
-    clear_logs_file()
-    st.session_state.total_requests = 0
-    st.sidebar.success("All log databases cleared.")
-    st.rerun()
+col_side1, col_side2 = st.sidebar.columns(2)
+with col_side1:
+    if st.button("🗑️ Clear Logs"):
+        clear_logs_file()
+        st.session_state.total_requests = 0
+        st.success("Cleared.")
+        st.rerun()
+with col_side2:
+    if st.button("🔓 Logout"):
+        query_token = st.query_params.get("session")
+        if query_token:
+            delete_session(query_token)
+        st.query_params.clear()
+        st.session_state.logged_in = False
+        st.session_state.username = ""
+        st.rerun()
 
 # ── Page Layout ──────────────────────────────────────────────
 st.markdown("<h1 style='text-align: center;'>🛡️ CYBERSHIELD WAF</h1>", unsafe_allow_html=True)
@@ -435,6 +640,16 @@ with tab_status:
         ]
     }
     st.table(pd.DataFrame(owasp_data))
+
+    st.markdown("---")
+    st.write("#### 📋 Operator Login Audit History")
+    login_history = load_login_history()
+    if not login_history:
+        st.info("No login history found.")
+    else:
+        history_df = pd.DataFrame(login_history)
+        history_df = history_df.iloc[::-1]
+        st.dataframe(history_df, width="stretch", hide_index=True)
 
 
 # ── AI Helper Functions ──────────────────────────────────────

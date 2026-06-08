@@ -450,12 +450,21 @@ st.markdown("<h1 style='text-align: center;'>🛡️ CYBERSHIELD WAF</h1>", unsa
 st.markdown("<p style='text-align: center; color: #88a; margin-top: -10px;'>AI-Powered Web Application Firewall & Security Operations Center</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-tab_dashboard, tab_logs, tab_status, tab_ai = st.tabs([
-    "🛡️ SOC Dashboard",
-    "📋 Attack Logs",
-    "⚙️ System Status",
-    "🤖 SHIELD-AI Chat Helper"
-])
+# Define tabs dynamically based on user role
+if st.session_state.username == "admin":
+    tab_dashboard, tab_logs, tab_status, tab_ai = st.tabs([
+        "🛡️ SOC Dashboard",
+        "📋 Attack Logs",
+        "⚙️ System Status",
+        "🤖 SHIELD-AI Chat Helper"
+    ])
+else:
+    tab_dashboard, tab_status, tab_ai = st.tabs([
+        "🛡️ SOC Dashboard",
+        "⚙️ System Status",
+        "🤖 SHIELD-AI Chat Helper"
+    ])
+    tab_logs = None
 
 # ── Tab 1: SOC Dashboard ──────────────────────────────────────
 with tab_dashboard:
@@ -464,15 +473,18 @@ with tab_dashboard:
     safe_requests = max(0, st.session_state.total_requests - total_blocked)
     threat_level = get_threat_level(total_blocked, st.session_state.total_requests)
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Requests", st.session_state.total_requests)
-    with col2:
-        st.metric("Blocked Attacks", total_blocked)
-    with col3:
-        st.metric("Safe Requests", safe_requests)
-    with col4:
-        st.metric("Threat Level", threat_level)
+    if st.session_state.username == "admin":
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Requests", st.session_state.total_requests)
+        with col2:
+            st.metric("Blocked Attacks", total_blocked)
+        with col3:
+            st.metric("Safe Requests", safe_requests)
+        with col4:
+            st.metric("Threat Level", threat_level)
+    else:
+        st.info("🔒 Dashboard metrics restricted to Administrator.")
 
     st.markdown("---")
 
@@ -533,66 +545,70 @@ with tab_dashboard:
 
     with col_right:
         st.subheader("📊 Traffic Distribution")
-        type_counts = db_stats["type_counts"]
-        if not type_counts:
-            st.info("No attacks logged yet — test some payloads to see visualization.")
-        else:
-            labels = list(type_counts.keys())
-            sizes = list(type_counts.values())
-            colors = ['#ff2244', '#ff7722', '#00d4ff', '#a855f7', '#ffd700', '#00ff88'][:len(labels)]
-            
-            fig, ax = plt.subplots(figsize=(5, 4))
-            fig.patch.set_facecolor('#0e1117')
-            ax.set_facecolor('#0e1117')
-            
-            wedges, texts, autotexts = ax.pie(
-                sizes,
-                labels=labels,
-                colors=colors,
-                autopct='%1.0f%%',
-                startangle=140,
-                textprops=dict(color='#8da2b5', fontfamily='sans-serif', fontsize=8),
-                wedgeprops=dict(width=0.4, edgecolor='#1a2436', linewidth=2)
-            )
-            for autotext in autotexts:
-                autotext.set_color('#ffffff')
-                autotext.set_weight('bold')
+        if st.session_state.username == "admin":
+            type_counts = db_stats["type_counts"]
+            if not type_counts:
+                st.info("No attacks logged yet — test some payloads to see visualization.")
+            else:
+                labels = list(type_counts.keys())
+                sizes = list(type_counts.values())
+                colors = ['#ff2244', '#ff7722', '#00d4ff', '#a855f7', '#ffd700', '#00ff88'][:len(labels)]
                 
-            ax.axis('equal')
-            plt.tight_layout()
-            st.pyplot(fig)
+                fig, ax = plt.subplots(figsize=(5, 4))
+                fig.patch.set_facecolor('#0e1117')
+                ax.set_facecolor('#0e1117')
+                
+                wedges, texts, autotexts = ax.pie(
+                    sizes,
+                    labels=labels,
+                    colors=colors,
+                    autopct='%1.0f%%',
+                    startangle=140,
+                    textprops=dict(color='#8da2b5', fontfamily='sans-serif', fontsize=8),
+                    wedgeprops=dict(width=0.4, edgecolor='#1a2436', linewidth=2)
+                )
+                for autotext in autotexts:
+                    autotext.set_color('#ffffff')
+                    autotext.set_weight('bold')
+                    
+                ax.axis('equal')
+                plt.tight_layout()
+                st.pyplot(fig)
+        else:
+            st.info("🔒 Activity analytics restricted to Administrator.")
 
 # ── Tab 2: Logs Database ─────────────────────────────────────
-with tab_logs:
-    st.subheader("📋 Attack Log Database")
-    st.write("Complete forensic record of all detected and blocked threats.")
+if tab_logs:
+    with tab_logs:
+        st.subheader("📋 Attack Log Database")
+        st.write("Complete forensic record of all detected and blocked threats.")
 
-    if not logs:
-        st.info("No attack logs found. Submit test payloads from the Dashboard to populate this table.")
-    else:
-        df = pd.DataFrame(logs)
-        df_display = df[["timestamp", "ip", "attack_type", "severity", "threat_score", "payload"]]
-        
-        # Filter controls
-        fcol1, fcol2 = st.columns(2)
-        with fcol1:
-            type_filter = st.selectbox("Filter by Attack Type:", ["All"] + list(df_display["attack_type"].unique()))
-        with fcol2:
-            sev_filter = st.selectbox("Filter by Severity:", ["All"] + ["CRITICAL", "HIGH", "MEDIUM"])
+        if not logs:
+            st.info("No attack logs found. Submit test payloads from the Dashboard to populate this table.")
+        else:
+            df = pd.DataFrame(logs)
+            df_display = df[["timestamp", "ip", "attack_type", "severity", "threat_score", "payload"]]
+            
+            # Filter controls
+            fcol1, fcol2 = st.columns(2)
+            with fcol1:
+                type_filter = st.selectbox("Filter by Attack Type:", ["All"] + list(df_display["attack_type"].unique()))
+            with fcol2:
+                sev_filter = st.selectbox("Filter by Severity:", ["All"] + ["CRITICAL", "HIGH", "MEDIUM"])
 
-        if type_filter != "All":
-            df_display = df_display[df_display["attack_type"] == type_filter]
-        if sev_filter != "All":
-            df_display = df_display[df_display["severity"] == sev_filter]
+            if type_filter != "All":
+                df_display = df_display[df_display["attack_type"] == type_filter]
+            if sev_filter != "All":
+                df_display = df_display[df_display["severity"] == sev_filter]
 
-        # Statistics summary row
-        scol1, scol2, scol3, scol4 = st.columns(4)
-        scol1.metric("Filtered Log Count", len(df_display))
-        scol2.metric("Critical Blocks", len(df_display[df_display["severity"] == "CRITICAL"]))
-        scol3.metric("High Blocks", len(df_display[df_display["severity"] == "HIGH"]))
-        scol4.metric("Medium Blocks", len(df_display[df_display["severity"] == "MEDIUM"]))
+            # Statistics summary row
+            scol1, scol2, scol3, scol4 = st.columns(4)
+            scol1.metric("Filtered Log Count", len(df_display))
+            scol2.metric("Critical Blocks", len(df_display[df_display["severity"] == "CRITICAL"]))
+            scol3.metric("High Blocks", len(df_display[df_display["severity"] == "HIGH"]))
+            scol4.metric("Medium Blocks", len(df_display[df_display["severity"] == "MEDIUM"]))
 
-        st.dataframe(df_display, width="stretch", hide_index=True)
+            st.dataframe(df_display, width="stretch", hide_index=True)
 
 # ── Tab 3: System Status & OWASP ──────────────────────────────
 with tab_status:
@@ -643,13 +659,16 @@ with tab_status:
 
     st.markdown("---")
     st.write("#### 📋 Operator Login Audit History")
-    login_history = load_login_history()
-    if not login_history:
-        st.info("No login history found.")
+    if st.session_state.username == "admin":
+        login_history = load_login_history()
+        if not login_history:
+            st.info("No login history found.")
+        else:
+            history_df = pd.DataFrame(login_history)
+            history_df = history_df.iloc[::-1]
+            st.dataframe(history_df, width="stretch", hide_index=True)
     else:
-        history_df = pd.DataFrame(login_history)
-        history_df = history_df.iloc[::-1]
-        st.dataframe(history_df, width="stretch", hide_index=True)
+        st.info("🔒 Operator login audit history is restricted to Administrator.")
 
 
 # ── AI Helper Functions ──────────────────────────────────────
@@ -657,7 +676,10 @@ def generate_local_response(prompt, logs, total_requests):
     prompt_lower = prompt.lower()
     total_blocked = len(logs)
     
-    if any(k in prompt_lower for k in ["summary", "attacks", "blocked", "how many", "stats", "log"]):
+    if any(k in prompt_lower for k in ["summary", "attacks", "blocked", "how many", "stats", "log", "history", "previous", "activity", "database", "record"]):
+        if st.session_state.username != "admin":
+            return "🔒 Queries regarding WAF attack logs and historical statistics are restricted to the Administrator."
+        
         if total_blocked == 0:
             return f"Currently, the WAF has monitored **{total_requests}** total requests and blocked **0** attacks. The system is clean."
         
@@ -731,7 +753,7 @@ def generate_local_response(prompt, logs, total_requests):
             "**Example Payload:** `; cat /etc/passwd`\n\n"
             "**Mitigation:** Avoid passing input directly to system interpreters; use API-based alternatives (like subprocess lists in Python) and strict input whitelisting."
         )
-
+ 
     if "directory" in prompt_lower or "traversal" in prompt_lower or "path" in prompt_lower:
         return (
             "### 📁 Directory Traversal Explanation\n\n"
@@ -740,22 +762,41 @@ def generate_local_response(prompt, logs, total_requests):
             "**Example Payload:** `../../etc/passwd`\n\n"
             "**Mitigation:** Use file path verification routines, avoid user input in file paths, or map files using predefined indices."
         )
-
-    return (
-        "I am **SHIELD-AI**, your local security assistant. I can help you with:\n"
-        "1. **Log summaries**: Ask me about 'blocked attacks' or 'summarize today'.\n"
-        "2. **Payload analysis**: Ask me to 'analyze: <your payload>' to test the WAF engine.\n"
-        "3. **OWASP FAQ**: Ask me to explain vulnerabilities like 'SQL Injection', 'XSS', 'Command Injection', or 'Directory Traversal'."
-    )
-
+ 
+    if st.session_state.username == "admin":
+        return (
+            "I am **SHIELD-AI**, your local security assistant. I can help you with:\n"
+            "1. **Log summaries**: Ask me about 'blocked attacks' or 'summarize today'.\n"
+            "2. **Payload analysis**: Ask me to 'analyze: <your payload>' to test the WAF engine.\n"
+            "3. **OWASP FAQ**: Ask me to explain vulnerabilities like 'SQL Injection', 'XSS', 'Command Injection', or 'Directory Traversal'."
+        )
+    else:
+        return (
+            "I am **SHIELD-AI**, your local security assistant. I can help you with:\n"
+            "1. **Payload analysis**: Ask me to 'analyze: <your payload>' to test the WAF engine.\n"
+            "2. **OWASP FAQ**: Ask me to explain vulnerabilities like 'SQL Injection', 'XSS', 'Command Injection', or 'Directory Traversal'."
+        )
+ 
 def generate_gemini_response(prompt, api_key, logs, total_requests):
     import requests
-    total_blocked = len(logs)
-    system_instruction = (
-        "You are SHIELD-AI, a professional security analyst chatbot integrated into the CyberShield WAF dashboard. "
-        f"Answer the user's cybersecurity question concisely and professionally. WAF Current Stats: "
-        f"{total_requests} total requests monitored, {total_blocked} blocked attacks."
-    )
+    prompt_lower = prompt.lower()
+    
+    if st.session_state.username != "admin":
+        if any(k in prompt_lower for k in ["summary", "attacks", "blocked", "how many", "stats", "log", "history", "previous", "activity", "database", "record"]):
+            return "🔒 Queries regarding WAF attack logs and historical statistics are restricted to the Administrator."
+        
+        system_instruction = (
+            "You are SHIELD-AI, a professional security analyst chatbot integrated into the CyberShield WAF dashboard. "
+            "Answer the user's cybersecurity question concisely and professionally. "
+            "Refuse to answer questions about WAF attack logs, historical statistics, database logs, or user login history, stating that they are restricted to the Administrator."
+        )
+    else:
+        total_blocked = len(logs)
+        system_instruction = (
+            "You are SHIELD-AI, a professional security analyst chatbot integrated into the CyberShield WAF dashboard. "
+            f"Answer the user's cybersecurity question concisely and professionally. WAF Current Stats: "
+            f"{total_requests} total requests monitored, {total_blocked} blocked attacks."
+        )
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
@@ -785,10 +826,14 @@ with tab_ai:
     st.write("Ask questions about security vulnerabilities, summarize WAF block records, or analyze payloads.")
 
     if "chat_history" not in st.session_state:
+        if st.session_state.username == "admin":
+            welcome_msg = "Hello! I am SHIELD-AI, your security intelligence assistant. I can help analyze request payloads, summarize blocked attacks, or explain web application security vulnerabilities. What would you like to know?"
+        else:
+            welcome_msg = "Hello! I am SHIELD-AI, your security intelligence assistant. I can help analyze request payloads or explain web application security vulnerabilities. What would you like to know?"
         st.session_state.chat_history = [
             {
                 "role": "assistant",
-                "content": "Hello! I am SHIELD-AI, your security intelligence assistant. I can help analyze request payloads, summarize blocked attacks, or explain web application security vulnerabilities. What would you like to know?"
+                "content": welcome_msg
             }
         ]
 

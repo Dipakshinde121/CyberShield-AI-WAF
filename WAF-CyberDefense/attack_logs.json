@@ -7,5 +7,23 @@
     "severity": "HIGH",
     "threat_score": 90,
     "total_requests": 1
+  },
+  {
+    "timestamp": "2026-06-09 00:47:56",
+    "ip": "127.0.0.1",
+    "payload": "; cat /etc/passwd",
+    "attack_type": "Command Injection",
+    "severity": "CRITICAL",
+    "threat_score": 95,
+    "total_requests": 3
+  },
+  {
+    "timestamp": "2026-06-09 00:48:01",
+    "ip": "127.0.0.1",
+    "payload": "' OR 1=1 --",
+    "attack_type": "SQL Injection",
+    "severity": "HIGH",
+    "threat_score": 90,
+    "total_requests": 4
   }
 ]

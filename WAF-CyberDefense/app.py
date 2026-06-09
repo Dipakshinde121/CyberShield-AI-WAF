@@ -26,6 +26,7 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "attack_logs
 USER_DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_credentials.json")
 LOGIN_HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "login_history.json")
 ACTIVE_SESSIONS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "active_sessions.json")
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
 # ── Attack Pattern Definitions ──────────────────────────────
 ATTACK_SIGNATURES = {
@@ -132,12 +133,12 @@ def clear_logs_file():
 def load_users():
     """Load user credentials from file."""
     if not os.path.exists(USER_DB_FILE):
-        return {"admin": "admin"}
+        return {"dipak": "admin"}
     try:
         with open(USER_DB_FILE, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
-        return {"admin": "admin"}
+        return {"dipak": "admin"}
 
 def save_user(username, password):
     """Save new user credentials."""
@@ -211,6 +212,8 @@ def delete_session(token):
     if token in sessions:
         del sessions[token]
         save_active_sessions(sessions)
+
+
 
 # ── Threat Detection Logic ──────────────────────────────────
 def detect_attack(user_input):
@@ -314,6 +317,30 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
+if "active_phone_otp" not in st.session_state:
+    st.session_state.active_phone_otp = None
+
+if "active_email_otp" not in st.session_state:
+    st.session_state.active_email_otp = None
+
+if "signup_verifying" not in st.session_state:
+    st.session_state.signup_verifying = False
+
+if "signup_data" not in st.session_state:
+    st.session_state.signup_data = None
+
+if "login_verifying" not in st.session_state:
+    st.session_state.login_verifying = False
+
+if "login_otp_username" not in st.session_state:
+    st.session_state.login_otp_username = None
+
+if "login_otp_type" not in st.session_state:
+    st.session_state.login_otp_type = None
+
+if "login_otp_target" not in st.session_state:
+    st.session_state.login_otp_target = None
+
 # Auto-Login Check (Remember Me Hook)
 if not st.session_state.logged_in:
     query_sess = st.query_params.get("session")
@@ -334,86 +361,161 @@ if "payload_input" not in st.session_state:
 def render_login_page():
     st.markdown("""
         <style>
-        .login-container {
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&display=swap');
+        
+        .login-title {
+            color: #00f0ff !important;
+            font-weight: 800;
+            font-size: 26px;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            margin-top: 25px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+        }
+        
+        .login-subtitle {
+            color: #7d9cb5;
+            font-size: 11px;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+            justify-content: center;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background-color: rgba(10, 15, 30, 0.5) !important;
+            border: 1px solid rgba(0, 240, 255, 0.2) !important;
+            border-radius: 8px 8px 0 0;
+            color: #7d9cb5 !important;
+            padding: 8px 16px !important;
+            font-family: 'Outfit', sans-serif;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: rgba(0, 240, 255, 0.15) !important;
+            border-color: #00f0ff !important;
+            color: #00f0ff !important;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+        }
+        
+        .waf-header-box {
             max-width: 480px;
-            margin: 80px auto;
-            padding: 35px;
+            margin: 0 auto 15px auto;
             background: rgba(11, 14, 20, 0.85) !important;
             border: 2px solid #00d4ff !important;
             box-shadow: 0 0 25px rgba(0, 212, 255, 0.45) !important;
             border-radius: 12px;
+            padding: 20px 30px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 95px;
         }
-        .login-title {
-            color: #00d4ff !important;
+        .waf-header-title {
+            color: #00f0ff;
+            font-size: 20px;
             font-weight: 800;
-            font-size: 24px;
-            text-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
-            margin-bottom: 5px;
             letter-spacing: 1.5px;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+            font-family: 'Outfit', sans-serif;
         }
-        .login-subtitle {
-            color: #8da2b5;
+        .waf-header-status {
+            color: #7d9cb5;
             font-size: 11px;
-            letter-spacing: 3px;
-            margin-bottom: 30px;
+            letter-spacing: 2px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00ff88;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #00ff88;
         }
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
-    st.markdown('<p class="login-title">🛡️ CYBERSHIELD GATEWAY</p>', unsafe_allow_html=True)
-    st.markdown('<p class="login-subtitle">SECURE OPERATOR ACCESS PANEL</p>', unsafe_allow_html=True)
+    # Center login column layout
+    left_space, center_col, right_space = st.columns([1, 4, 1])
     
-    login_tab, register_tab = st.tabs(["🔑 Sign In", "📝 Register Account"])
-    
-    with login_tab:
-        with st.form("login_form"):
-            username = st.text_input("Operator Username", placeholder="e.g. admin")
-            password = st.text_input("Access Password", type="password", placeholder="••••••••")
-            remember_me = st.checkbox("Remember session on this device", value=True)
-            submit_login = st.form_submit_button("AUTHORIZE SYSTEM ACCESS")
+    with center_col:
+        st.markdown("""
+            <div class="waf-header-box">
+                <div class="waf-header-title">WEB APPLICATION FIREWALL</div>
+                <div class="waf-header-status"><span class="status-dot"></span> PROTECTION ONLINE</div>
+            </div>
+        """, unsafe_allow_html=True)
             
-            if submit_login:
-                if not username.strip() or not password.strip():
-                    st.error("Please enter both username and password.")
-                else:
-                    users = load_users()
-                    if username in users and users[username] == password:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        log_login_event(username)
-                        if remember_me:
-                            token = register_session(username)
-                            st.query_params["session"] = token
-                        st.success("Access Authorized! Redirecting to SOC dashboard...")
-                        st.rerun()
+        st.markdown('<p class="login-title">🛡️ CYBERSHIELD GATEWAY</p>', unsafe_allow_html=True)
+        st.markdown('<p class="login-subtitle">SECURE OPERATOR ACCESS PANEL</p>', unsafe_allow_html=True)
+        
+        login_tab, register_tab = st.tabs(["🔑 Sign In", "📝 Register Account"])
+        
+        with login_tab:
+            with st.form("login_form"):
+                username = st.text_input("Operator Username", placeholder="e.g. admin")
+                password = st.text_input("Access Password", type="password", placeholder="••••••••")
+                remember_me = st.checkbox("Remember session on this device", value=True, key="pw_remember")
+                submit_login = st.form_submit_button("AUTHORIZE SYSTEM ACCESS")
+                
+                if submit_login:
+                    if not username.strip() or not password.strip():
+                        st.error("Please enter both username and password.")
                     else:
-                        st.error("ACCESS DENIED: Invalid operator credentials.")
-                        
-    with register_tab:
-        with st.form("register_form"):
-            reg_username = st.text_input("Create Username", placeholder="e.g. operator1")
-            reg_password = st.text_input("Create Password", type="password", placeholder="••••••••")
-            reg_confirm = st.text_input("Confirm Password", type="password", placeholder="••••••••")
-            submit_reg = st.form_submit_button("PROVISION ACCOUNT")
-            
-            if submit_reg:
-                if not reg_username.strip() or not reg_password.strip():
-                    st.error("All credential fields are required.")
-                elif reg_password != reg_confirm:
-                    st.error("Password verification mismatch.")
-                else:
-                    users = load_users()
-                    if reg_username in users:
-                        st.error("Username is already registered.")
-                    else:
-                        if save_user(reg_username, reg_password):
-                            st.success("Operator registered successfully! Please sign in using the Sign In tab.")
+                        users = load_users()
+                        if username in users:
+                            stored_val = users[username]
+                            stored_password = stored_val.get("password") if isinstance(stored_val, dict) else stored_val
+                            if stored_password == password:
+                                st.session_state.logged_in = True
+                                st.session_state.username = username
+                                log_login_event(username)
+                                if remember_me:
+                                    token = register_session(username)
+                                    st.query_params["session"] = token
+                                st.success("Access Authorized! Redirecting to SOC dashboard...")
+                                st.rerun()
+                            else:
+                                st.error("ACCESS DENIED: Invalid operator credentials.")
                         else:
-                            st.error("Failed to write to operator database.")
+                            st.error("ACCESS DENIED: Invalid operator credentials.")
                             
-    st.markdown('</div>', unsafe_allow_html=True)
+        with register_tab:
+            with st.form("register_form"):
+                reg_username = st.text_input("Create Username", placeholder="e.g. operator1")
+                reg_password = st.text_input("Create Password", type="password", placeholder="••••••••")
+                reg_confirm = st.text_input("Confirm Password", type="password", placeholder="••••••••")
+                submit_reg = st.form_submit_button("PROVISION ACCOUNT")
+                
+                if submit_reg:
+                    if not reg_username.strip() or not reg_password.strip():
+                        st.error("All credential fields are required.")
+                    elif reg_password != reg_confirm:
+                        st.error("Password verification mismatch.")
+                    else:
+                        users = load_users()
+                        if reg_username in users:
+                            st.error("Username is already registered.")
+                        else:
+                            if save_user(reg_username, reg_password):
+                                st.success("Operator registered successfully! Please sign in using the Sign In tab.")
+                                st.rerun()
+                            else:
+                                st.error("Failed to write to operator database.")
 
 # ── Authentication Gate ──────────────────────────────────────
 if not st.session_state.logged_in:
@@ -451,7 +553,7 @@ st.markdown("<p style='text-align: center; color: #88a; margin-top: -10px;'>AI-P
 st.markdown("---")
 
 # Define tabs dynamically based on user role
-if st.session_state.username == "admin":
+if st.session_state.username == "dipak":
     tab_dashboard, tab_logs, tab_status, tab_ai = st.tabs([
         "🛡️ SOC Dashboard",
         "📋 Attack Logs",
@@ -473,7 +575,7 @@ with tab_dashboard:
     safe_requests = max(0, st.session_state.total_requests - total_blocked)
     threat_level = get_threat_level(total_blocked, st.session_state.total_requests)
 
-    if st.session_state.username == "admin":
+    if st.session_state.username == "dipak":
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Requests", st.session_state.total_requests)
@@ -545,7 +647,7 @@ with tab_dashboard:
 
     with col_right:
         st.subheader("📊 Traffic Distribution")
-        if st.session_state.username == "admin":
+        if st.session_state.username == "dipak":
             type_counts = db_stats["type_counts"]
             if not type_counts:
                 st.info("No attacks logged yet — test some payloads to see visualization.")
@@ -659,7 +761,7 @@ with tab_status:
 
     st.markdown("---")
     st.write("#### 📋 Operator Login Audit History")
-    if st.session_state.username == "admin":
+    if st.session_state.username == "dipak":
         login_history = load_login_history()
         if not login_history:
             st.info("No login history found.")
@@ -677,7 +779,7 @@ def generate_local_response(prompt, logs, total_requests):
     total_blocked = len(logs)
     
     if any(k in prompt_lower for k in ["summary", "attacks", "blocked", "how many", "stats", "log", "history", "previous", "activity", "database", "record"]):
-        if st.session_state.username != "admin":
+        if st.session_state.username != "dipak":
             return "🔒 Queries regarding WAF attack logs and historical statistics are restricted to the Administrator."
         
         if total_blocked == 0:
@@ -763,7 +865,7 @@ def generate_local_response(prompt, logs, total_requests):
             "**Mitigation:** Use file path verification routines, avoid user input in file paths, or map files using predefined indices."
         )
  
-    if st.session_state.username == "admin":
+    if st.session_state.username == "dipak":
         return (
             "I am **SHIELD-AI**, your local security assistant. I can help you with:\n"
             "1. **Log summaries**: Ask me about 'blocked attacks' or 'summarize today'.\n"
@@ -781,7 +883,7 @@ def generate_gemini_response(prompt, api_key, logs, total_requests):
     import requests
     prompt_lower = prompt.lower()
     
-    if st.session_state.username != "admin":
+    if st.session_state.username != "dipak":
         if any(k in prompt_lower for k in ["summary", "attacks", "blocked", "how many", "stats", "log", "history", "previous", "activity", "database", "record"]):
             return "🔒 Queries regarding WAF attack logs and historical statistics are restricted to the Administrator."
         
@@ -826,7 +928,7 @@ with tab_ai:
     st.write("Ask questions about security vulnerabilities, summarize WAF block records, or analyze payloads.")
 
     if "chat_history" not in st.session_state:
-        if st.session_state.username == "admin":
+        if st.session_state.username == "dipak":
             welcome_msg = "Hello! I am SHIELD-AI, your security intelligence assistant. I can help analyze request payloads, summarize blocked attacks, or explain web application security vulnerabilities. What would you like to know?"
         else:
             welcome_msg = "Hello! I am SHIELD-AI, your security intelligence assistant. I can help analyze request payloads or explain web application security vulnerabilities. What would you like to know?"
